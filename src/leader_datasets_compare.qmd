@@ -1,0 +1,174 @@
+---
+title: "Comparison of State Leader Datasets"
+format: html
+editor: visual
+---
+
+```{r,warning=FALSE,message=FALSE}
+#| echo: false
+
+# Loading R packages that will be used
+library(here)
+library(arrow)
+library(lubridate)
+library(tidyverse)
+
+# Loading Archigos and REIGN datasets
+archigos <- arrow::read_parquet(here('data', 'archigos.parquet'))
+reign <- arrow::read_parquet(here('data', 'reign_leaders.parquet'))
+
+# Converting date fields to date types and only keeping columns that are
+# needed for comparing the two datasets.
+archigos_clean <-
+  archigos %>%
+  mutate(startdate = lubridate::ymd(startdate),
+         syear = lubridate::year(startdate),
+         smonth = lubridate::month(startdate),
+         sdate = lubridate::day(startdate),
+         enddate = ifelse(enddate == '2015-12-31',
+                          NA_character_,
+                          enddate),
+         # For leaders that were still in office at the end of 2015
+         # Archigos codes their end date as 2015-12-31. I am converting those
+         # to missing values since the observations of when those leaders
+         # left office were not made.
+         enddate = lubridate::ymd(enddate),
+         eyear = lubridate::year(enddate),
+         emonth = lubridate::month(enddate),
+         edate = lubridate::day(enddate)) %>%
+  select(ccode, idacr, obsid, leadid, leader, startdate, enddate,
+         syear, smonth, sdate, eyear, emonth, edate)
+
+reign_clean <-
+  reign %>%
+  arrange(ccode, syear, smonth, sdate) %>%
+  mutate(startdate = lubridate::make_date(syear, smonth, sdate),
+         month_end_day =
+           as.integer(days_in_month(make_date(eyear, emonth, 1L))),
+         edate = ifelse(ccode == lead(ccode, n = 1L) &
+                          eyear == lead(syear, n = 1L) &
+                          emonth == lead(smonth, n = 1L),
+                        lead(sdate, n = 1L),
+                        month_end_day),
+         enddate = lubridate::make_date(eyear, emonth, edate)) %>%
+         # REIGN has the year and month when leaders left office, but not the
+         # day. I am imputing the day by assuming their tenure was as long
+         # as possible given the other information in the dataset (i.e.,
+         # the leader left office the day the next leader assumed office if
+         # those events occurred in the same year and month or the leader
+         # left office on the last day of the month.
+  select(ccode, stateabb, leadid, leader, startdate, enddate,
+         syear, smonth, sdate, eyear, emonth, edate)
+
+# Creating a data.frame with one row for each year that exists in either the
+# Archigos or REIGN datasets to be able to get a count of the states that have
+# an observation for either dataset in a given year.
+dates_df <-
+  data.frame(Year = seq.int(from = min(archigos_clean$syear,
+                                       archigos_clean$eyear,
+                                       reign_clean$syear,
+                                       reign_clean$eyear,
+                                       na.rm = TRUE),
+                            to = max(archigos_clean$syear,
+                                     archigos_clean$eyear,
+                                     reign_clean$syear,
+                                     reign_clean$eyear,
+                                     na.rm = TRUE),
+                            by = 1L))
+
+archigos_years <-
+  archigos_clean %>%
+  mutate(eyear = ifelse(is.na(eyear), 2015L, eyear)) %>%
+  right_join(x = dates_df,
+             y = .,
+             by = join_by(between(Year, syear, eyear))) %>%
+  group_by(Year) %>%
+  summarise(obs_count = n_distinct(ccode),
+            .groups = "drop") %>%
+  mutate(dataset = "Archigos")
+
+reign_years <-
+  reign_clean %>%
+  mutate(eyear = ifelse(is.na(eyear), 2021L, eyear)) %>%
+  right_join(x = dates_df,
+             y = .,
+             by = join_by(between(Year, syear, eyear))) %>%
+  group_by(Year) %>%
+  summarise(obs_count = n_distinct(ccode),
+            .groups = "drop") %>%
+  mutate(dataset = "REIGN")
+
+# Identifying the states that are only in one of the datasets. Both use the
+# Correlates of War coding system, but there is some difference in how they
+# applied it.
+archigos_only_states <-
+  archigos_clean %>%
+  filter(!ccode %in% reign_clean$ccode) %>%
+  group_by(ccode) %>%
+  summarise(state_name = max(idacr),
+            first_obs = min(startdate, enddate, na.rm = TRUE),
+            last_obs = max(startdate, enddate, na.rm = TRUE),
+            .groups = "drop")
+
+reign_only_states <-
+  reign_clean %>%
+  filter(!ccode %in% archigos_clean$ccode) %>%
+  group_by(ccode) %>%
+  summarise(state_name = max(stateabb),
+            first_obs = min(startdate, enddate, na.rm = TRUE),
+            last_obs = max(startdate, enddate, na.rm = TRUE),
+            .groups = "drop")
+
+```
+
+## The Archigos and REIGN Datasets
+
+'Archigos: A Data Set on Leaders 1875-2015' and 'Rulers, Elections and Irregular Governance Dataset (REIGN)' are both data sets on political leaders. REIGN uses as Archigos as a source, but differs in the timeframe and the states that are covered. Additionally, for states in both data sets there are some differences in who is coded as the state's leader or when the entered into or were removed from office.
+
+In their codebook, Goemans, Gleditsch, and Chiozza describe Archigos as identifying the "effective primary ruler" of independent states, as identified by Gleditsch and Ward. In more detail, "Many countries have multiple heads of states. In some cases, the formal head of a state may be a primarily a ceremonial position (as in most present day monarchies in Europe), where executive power is delegated to another position such as a prime minister. In other cases, a strongman (or woman) may formally step down but remain the effective leader of a state. We have tried to identify the actual effective ruler based on our knowledge of the particulars of each state. In most cases, identifying effective rulers is relatively clear and uncontroversial, but in other cases the coding may be more contentions \[sic\]" (pg 1).
+
+In their codebook, Bell, Besaw, and Frank describe REIGN as "collect\[ing\] data concerning the political leadership, regime characteristics and electoral outcomes for every country around the globe since January 1950" (pg 1). REIGN was updated monthly until August 2021. The authors of REIGN also acknowledge the difficulty of identifying the "chief executive" in some cases and have released technical notes describing differences between REIGN and Archigos (available at https://cdn.rawgit.com/OEFDataScience/REIGN.github.io/gh-pages/documents/reign_notes.pdf).
+
+This document aims to build off that technical note by describing both datasets, their similarities and differences, and providing instructions on how to combine them into one dataset.
+
+### Comparison of Dates Covered
+
+The Archigos dataset contains observations for leaders from `r min(archigos_clean$startdate, archigos_clean$enddate, na.rm = TRUE)` to `r max(archigos_clean$startdate, archigos_clean$enddate, na.rm = TRUE)`. The REIGN dataset contains observations for leaders from `r min(reign_clean$startdate, reign_clean$enddate, na.rm = TRUE)` to `r max(reign_clean$startdate, reign_clean$enddate, na.rm = TRUE)`. The beginning of the timeframes for both datasets is earlier than stated in the codebooks (1875 for Archigos, 1950 for REIGN) because for rulers that were in office when the data collection period began both datasets include the date of when the ruler entered office.
+
+```{r}
+rbind(archigos_years, reign_years) %>%
+  ggplot(aes(x = Year, y = obs_count, fill = dataset)) +
+  geom_col(position = position_identity(), width = 1) +
+  scale_fill_manual(values = c('#00BFC4', '#F8766DB0')) +
+  labs(title = "Archigos and REIGN Datasets by Year",
+       subtitle = "# of states with at least one observation in the year",
+       x = NULL,
+       y = '# of states') +
+  theme(panel.background = element_blank(),
+        panel.grid.major.y = element_line(colour = '#eeeeee'),
+        axis.ticks.y = element_blank(),
+        legend.position = "top",
+        legend.title = element_blank(),
+        legend.justification = "left")
+```
+
+The figure above shows the number of states included in each data set by year. Archigos covers 75 years (1875-1949) before data from REIGN provide similar coverage. From 1950 to 1974 Archigos and REIGN are nearly identical in the number of states covered per year. Starting in the late 1970s, several small island nations gained independence (e.g. Dominica, Grenada, Vanuatu, Tuvalu) and are included in REIGN but not Archigos. This is the gap in the graph that starts in the 1970s and continues through 2015, which is when data collection for Archigos stopped.
+
+### Comparison of States Covered
+
+### Leader Differences
+
+When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+```{r}
+1 + 1
+```
+
+You can add options to executable code like this
+
+```{r}
+#| echo: false
+2 * 2
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).
