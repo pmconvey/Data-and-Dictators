@@ -47,3 +47,11 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+
+# DuckDB executable
+duckdb.exe
+
+# Data folders
+doc/
+data/
+output/
