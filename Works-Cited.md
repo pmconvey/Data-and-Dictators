@@ -12,6 +12,8 @@ Ellis, Cali Mortenson, Michael C. Horowitz, and Allan C. Stam. 2015. “Introduc
 
 Erik Melander, Therése Pettersson, and Lotta Themnér (2016) Organized violence, 1989–2015. Journal of Peace Research 53(5)
 
+Gleditsch, Kristian S. & Michael D. Ward. 1999. "Interstate System Membership: A Revised List of the Independent States since 1816." International Interactions 25: 393-413.
+
 Goemans, H. E., Gleditsch, K. S., & Chiozza, G. (2009). Introducing Archigos: A Dataset of Political Leaders. Journal of Peace Research, 46(2), 269–283. https://doi.org/10.1177/0022343308100719
 
 Marshall, Monty G., Ted Robert Gurr, and Keith Jaggers. 2016. Polity IV Project. Center for Systemic Peace.
