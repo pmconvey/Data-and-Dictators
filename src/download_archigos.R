@@ -27,7 +27,8 @@ arrow::write_parquet(elections, here('data', 'archigos_elections.parquet'))
 
 # Download the codebook and case descriptions
 download.file('https://rochester.edu/college/faculty/hgoemans/Archigos_4.1.pdf',
-              here('doc', 'Archigos_4.1.pdf'))
+              here('doc', 'Archigos_4.1.pdf'),
+              mode = 'wb')
 
 rm(archigos, elections)
 

@@ -34,12 +34,14 @@ arrow::write_parquet(reign_regimes, here('data', 'reign_regimes.parquet'))
 # Download the codebook
 download.file(paste0('https://raw.githubusercontent.com/OEFDataScience/',
                      'REIGN.github.io/gh-pages/documents/REIGN_CODEBOOK.pdf'),
-              here('doc', 'REIGN_CODEBOOK.pdf'))
+              here('doc', 'REIGN_CODEBOOK.pdf'),
+              mode = 'wb')
 
 # Download the technical notes
 download.file(paste0('https://cdn.rawgit.com/OEFDataScience/',
                      'REIGN.github.io/gh-pages/documents/reign_notes.pdf'),
-              here('doc', 'reign_notes.pdf'))
+              here('doc', 'reign_notes.pdf'),
+              mode = 'wb')
 
 rm(reign, reign_leaders, reign_elections, reign_regimes)
 

@@ -22,7 +22,8 @@ arrow::write_parquet(elvi_forecast, here('data', 'elvi_forecasts.parquet'))
 # Download the codebook
 download.file(paste0('https://raw.githubusercontent.com/OEFDataScience/',
                      'REIGN.github.io/gh-pages/documents/ELVI_CODEBOOK.pdf'),
-              here('doc', 'ELVI_CODEBOOK.pdf'))
+              here('doc', 'ELVI_CODEBOOK.pdf'),
+              mode = 'wb')
 
 rm(elvi_event, elvi_forecast)
 

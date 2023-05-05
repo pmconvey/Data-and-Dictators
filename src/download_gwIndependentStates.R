@@ -18,7 +18,8 @@ arrow::write_parquet(all_states, here('data', 'gw_states.parquet'))
 
 # Download the case descriptions
 download.file('http://ksgleditsch.com/data/iisyst_casedesc.pdf',
-              here('doc', 'iisyst_casedesc.pdf'))
+              here('doc', 'iisyst_casedesc.pdf'),
+              mode = 'wb')
 
 rm(states, microstates, all_states)
 
